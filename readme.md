@@ -173,19 +173,25 @@ classDiagram
 
 *Доступные действия пользователя*
 
-![Диаграмма доступных действий пользователя](imgs/User_Capabilities_Account.png)
+![Диаграмма пользоватея](imgs/User_Capabilities_Account.png)
 Диаграмма отображает все действия, доступные пользователю для управления аккаунтом. Эти действия включают регистрацию, авторизацию, обновление токенов, сброс пароля и изменение пароля. Часть функций доступна публично, но для большинства операций требуется авторизация через JwtAuthGuard.
 
-![Диаграмма доступных действий пользователя](imgs/User_Capabilities_Portfolios.png)
+![Диаграмма пользоватея](imgs/User_Capabilities_Portfolios.png)
 Диаграмма отображает все действия, доступные пользователю для управления аккаунтом. Эти действия включают регистрацию, авторизацию, обновление токенов, сброс пароля и изменение пароля. Часть функций доступна публично, но для большинства операций требуется авторизация через JwtAuthGuard.
 
-![Диаграмма доступных действий пользователя](imgs/User_Capabilities_Transactions.png)
+
+![Диаграмма пользоватея](imgs/User_Capabilities_Transactions.png)
+
 Диаграмма отображает все действия, доступные пользователю для управления аккаунтом. Эти действия включают регистрацию, авторизацию, обновление токенов, сброс пароля и изменение пароля. Часть функций доступна публично, но для большинства операций требуется авторизация через JwtAuthGuard.
 
-![Диаграмма доступных действий пользователя](imgs/Admin_Capabilities_Roles.png)
+
+![Диаграмма пользоватея](imgs/Admin_Capabilities_Roles.png)
+
 Диаграмма показывает действия, доступные администратору для управления пользователями и ролями. Администратор может получать информацию обо всех пользователях, добавлять и удалять роли, а также создавать новые роли и получать их по значению.
 
-![Диаграмма доступных действий пользователя](imgs/Admin_Capabilities_Transactions.png)
+
+![Диаграмма пользоватея](imgs/Admin_Capabilities_Transactions.png)
+
 Диаграмма показывает действия, доступные администратору для работы с активами и транзакциями. Администратор может создавать активы, удалять их по тикеру, а также просматривать все транзакции. 
 
 Все эти действия также требуют наличия роли ADMIN и проверки прав через JwtAuthGuard и RolesGuard.
@@ -203,3 +209,123 @@ classDiagram
 Диаграмма показывает базовую структуру приложения:
 сервер взаимодействует с базой данных и файловыми хранилищами через API-слой.
 Хранилища используются для долговременного сохранения данных и резервных копий, а база данных — для основной логики приложения.
+
+```mermaid
+classDiagram
+direction TB
+
+class User {
+  int id
+  string username
+  string email
+  string password
+  Date createdAt
+  Date updatedAt
+}
+
+class Role {
+  int id
+  string value
+  string description
+}
+
+class UserRole {
+  int id
+  int userId
+  int roleId
+}
+
+class Portfolio {
+  int id
+  int userId
+  string name
+  string type  // PortfolioType
+  Date createdAt
+  Date updatedAt
+}
+
+class Asset {
+  int id
+  string name
+  string ticker
+  string type  // AssetType
+}
+
+class PortfolioAsset {
+  int id
+  int portfolioId
+  int assetId
+  decimal quantity
+  decimal averageBuyPrice
+  Date? purchaseDate
+}
+
+class Transaction {
+  int id
+  int portfolioId
+  int assetId
+  string type   // TransactionType
+  decimal quantity
+  decimal pricePerUnit
+  Date date
+}
+
+class RefreshToken {
+  int id
+  int userId
+  string token
+  Date expiryDate
+  Date createdAt
+}
+
+class ResetToken {
+  int id
+  int userId
+  string token
+  Date expiryDate
+  Date createdAt
+}
+
+class AssetType {
+  <<enum>>
+  CRYPTO
+  STOCK
+  BOND
+  CASH
+  OTHER
+}
+
+class PortfolioType {
+  <<enum>>
+  CRYPTO
+  STOCK
+  MIXED
+}
+
+class TransactionType {
+  <<enum>>
+  BUY
+  SELL
+  DEPOSIT
+  WITHDRAW
+}
+
+%% Связи
+User "1" -- "0..*" Portfolio : owns
+User "1" -- "0..*" UserRole : has
+Role "1" -- "0..*" UserRole : in
+Portfolio "0..*" -- "0..*" Asset : via PortfolioAsset
+Portfolio "1" -- "0..*" PortfolioAsset : contains
+Asset "1" -- "0..*" PortfolioAsset : listed
+Portfolio "1" -- "0..*" Transaction : has
+Asset "1" -- "0..*" Transaction : traded
+User "1" -- "0..*" RefreshToken : has
+User "1" -- "0..*" ResetToken : has
+
+%% Типы
+Asset --> AssetType : type
+Portfolio --> PortfolioType : type
+Transaction --> TransactionType : type
+
+```
+Диаграмма показывает структуру данных платформы аналитики портфелей: пользователей и их роли, портфели и состав портфелей (активы с количеством и средней ценой), а также историю транзакций. Типы активов/портфелей/транзакций вынесены в перечисления, чтобы явно фиксировать допустимые значения.
