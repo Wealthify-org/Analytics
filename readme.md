@@ -198,134 +198,174 @@ classDiagram
 
 ```mermaid
 classDiagram
-    class Server
-    class Database
-    class Storage
+  %% =========================
+  %% КЛАССЫ ДОМЕНА
+  %% =========================
+  class User {
+    +id: number
+    +username: string
+    +email: string
+    +password: string
+    +createdAt: Date
+    +updatedAt: Date
+  }
 
-    Server --> Database : read / write
-    Server --> Storage : upload / download
-    Database --> Storage : backup / archive
-```
-Диаграмма показывает базовую структуру приложения:
-сервер взаимодействует с базой данных и файловыми хранилищами через API-слой.
-Хранилища используются для долговременного сохранения данных и резервных копий, а база данных — для основной логики приложения.
+  class Role {
+    +id: number
+    +value: string
+    +description: string
+  }
 
-```mermaid
-classDiagram
-direction TB
+  class UserRoles {
+    +id: number
+    +userId: number
+    +roleId: number
+  }
 
-class User {
-  int id
-  string username
-  string email
-  string password
-  Date createdAt
-  Date updatedAt
-}
+  class RefreshToken {
+    +id: number
+    +userId: number
+    +token: string
+    +expiryDate: Date
+  }
 
-class Role {
-  int id
-  string value
-  string description
-}
+  class ResetToken {
+    +id: number
+    +userId: number
+    +token: string
+    +expiryDate: Date
+  }
 
-class UserRole {
-  int id
-  int userId
-  int roleId
-}
+  class Portfolio {
+    +id: number
+    +userId: number
+    +name: string
+    +type: PortfolioType
+    +createdAt: Date
+    +updatedAt: Date
+  }
 
-class Portfolio {
-  int id
-  int userId
-  string name
-  string type  // PortfolioType
-  Date createdAt
-  Date updatedAt
-}
+  class Asset {
+    +id: number
+    +ticker: string
+    +name: string
+    +type: AssetType
+    +createdAt: Date
+    +updatedAt: Date
+  }
 
-class Asset {
-  int id
-  string name
-  string ticker
-  string type  // AssetType
-}
+  class PortfolioAssets {
+    +id: number
+    +portfolioId: number
+    +assetId: number
+    +quantity: number
+    +averageBuyPrice: number
+    +purchaseDate: Date
+  }
 
-class PortfolioAsset {
-  int id
-  int portfolioId
-  int assetId
-  decimal quantity
-  decimal averageBuyPrice
-  Date? purchaseDate
-}
+  class Transaction {
+    +id: number
+    +portfolioId: number
+    +assetId: number
+    +type: TransactionType
+    +quantity: number
+    +pricePerUnit: number
+    +date: Date
+  }
 
-class Transaction {
-  int id
-  int portfolioId
-  int assetId
-  string type   // TransactionType
-  decimal quantity
-  decimal pricePerUnit
-  Date date
-}
+  class CryptoAsset {
+    +id: number
+    +ticker: string
+    +name: string
+    +description?: string
+    +slug?: string
+    +logoUrl?: string
+    +websiteUrl?: string
+    +sector?: string
+    +source?: string
+    +isActive?: boolean
+    +priceUsd?: string
+    +marketCapUsd?: string
+    +fdvUsd?: string
+    +dominance?: string
+    +volume24hUsd?: string
+    +volume24hNative?: string
+    +circulatingSupply?: string
+    +totalSupply?: string
+    +maxSupply?: string
+    +rank?: number
+    +marketCapRank?: number
+    +sparkline7d?: any
+    +lastUpdatedAt?: Date
+  }
 
-class RefreshToken {
-  int id
-  int userId
-  string token
-  Date expiryDate
-  Date createdAt
-}
+  class CryptoCandle {
+    +id: number
+    +assetId: number
+    +interval: CandleInterval
+    +openTime: Date
+    +closeTime: Date
+    +open: string
+    +high: string
+    +low: string
+    +close: string
+    +volume?: string
+    +marketCapUsd?: string
+  }
 
-class ResetToken {
-  int id
-  int userId
-  string token
-  Date expiryDate
-  Date createdAt
-}
+  %% =========================
+  %% ENUMЫ (как в TS)
+  %% =========================
+  class AssetType {
+    <<enumeration>>
+    CRYPTO = "Crypto"
+    BOND   = "Bond"
+    STOCK  = "Stock"
+    FIAT   = "Fiat"
+  }
 
-class AssetType {
-  <<enum>>
-  CRYPTO
-  STOCK
-  BOND
-  CASH
-  OTHER
-}
+  class PortfolioType {
+    <<enumeration>>
+    CRYPTO = "Crypto"
+    STOCK  = "Stock"
+    BOND   = "Bond"
+  }
 
-class PortfolioType {
-  <<enum>>
-  CRYPTO
-  STOCK
-  MIXED
-}
+  class TransactionType {
+    <<enumeration>>
+    BUY  = "BUY"
+    SELL = "SELL"
+  }
 
-class TransactionType {
-  <<enum>>
-  BUY
-  SELL
-  DEPOSIT
-  WITHDRAW
-}
+  class CandleInterval {
+    <<enumeration>>
+    MIN1  = "1m"
+    MIN5  = "5m"
+    MIN15 = "15m"
+    H1    = "1h"
+    H4    = "4h"
+    D1    = "1d"
+    W1    = "1w"
+    M1    = "1mo"
+  }
 
-%% Связи
-User "1" -- "0..*" Portfolio : owns
-User "1" -- "0..*" UserRole : has
-Role "1" -- "0..*" UserRole : in
-Portfolio "0..*" -- "0..*" Asset : via PortfolioAsset
-Portfolio "1" -- "0..*" PortfolioAsset : contains
-Asset "1" -- "0..*" PortfolioAsset : listed
-Portfolio "1" -- "0..*" Transaction : has
-Asset "1" -- "0..*" Transaction : traded
-User "1" -- "0..*" RefreshToken : has
-User "1" -- "0..*" ResetToken : has
+  %% =========================
+  %% СВЯЗИ
+  %% =========================
+  User "1" -- "0..*" UserRoles : userRoles
+  Role "1" -- "0..*" UserRoles : roleUsers
 
-%% Типы
-Asset --> AssetType : type
-Portfolio --> PortfolioType : type
-Transaction --> TransactionType : type
+  User "1" o-- "0..*" Portfolio : portfolios
+  User "1" o-- "0..1" RefreshToken : refreshToken
+  User "1" o-- "0..1" ResetToken : resetToken
+
+  Portfolio "1" o-- "0..*" PortfolioAssets : holdings
+  Asset "1" -- "0..*" PortfolioAssets : inPortfolios
+
+  Portfolio "1" o-- "0..*" Transaction : transactions
+  Asset "1" -- "0..*" Transaction : transactionAsset
+
+  CryptoAsset "1" o-- "0..*" CryptoCandle : candles
 
 ```
 Диаграмма показывает структуру данных платформы аналитики портфелей: пользователей и их роли, портфели и состав портфелей (активы с количеством и средней ценой), а также историю транзакций. Типы активов/портфелей/транзакций вынесены в перечисления, чтобы явно фиксировать допустимые значения.
