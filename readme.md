@@ -444,3 +444,141 @@ classDiagram
   CryptoAssetData "1" o-- "0..*" CryptoCandle : candles
 ```
 Диаграмма показывает структуру данных платформы аналитики портфелей: пользователей и их роли, портфели и состав портфелей (активы с количеством и средней ценой), а также историю транзакций. Типы активов/портфелей/транзакций вынесены в перечисления, чтобы явно фиксировать допустимые значения.
+
+```mermaid
+classDiagram
+    class Frontend {
+        <<component>>
+        +Запросы API
+    }
+    class APIGateway {
+        <<component>>
+        +Обрабатывает запросы
+        +Маршрутизация
+    }
+    class AuthMicroservice {
+        <<component>>
+        +Аутентификация
+        +Управление ролями
+    }
+    class PortfolioMicroservice {
+        <<component>>
+        +Управление портфелями
+        +Транзакции
+    }
+    class CryptoDataWorker {
+        <<component>>
+        +Сбор данных криптовалют
+    }
+    class PostgreSQL {
+        <<component>>
+        +Хранение данных
+    }
+    class ExternalAPI {
+        <<component>>
+        +Данные о криптовалютах
+    }
+
+    Frontend --> APIGateway : Запросы
+    APIGateway --> AuthMicroservice : Запросы на аутентификацию
+    APIGateway --> PortfolioMicroservice : Запросы на управление портфелем
+    APIGateway --> CryptoDataWorker : Запросы на сбор данных
+    APIGateway --> PostgreSQL : Запросы на базу данных
+    CryptoDataWorker --> ExternalAPI : Получение данных о криптовалютах
+    PostgreSQL --> AuthMicroservice : Хранение данных пользователей
+    PostgreSQL --> PortfolioMicroservice : Хранение портфелей
+
+```
+Диаграмма компонентов показывает ключевые компоненты системы "Wealthify" и их взаимодействие. Она включает компоненты фронтенда, API-шлюз, микросервисы для аутентификации, управления портфелями, сбора данных о криптовалютах и базу данных PostgreSQL. Взаимодействие между компонентами представлено через запросы API и данные, передаваемые между сервисами.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Заполнение формы
+    Заполнение формы --> Валидация данных
+    Валидация данных --> Данные корректны
+    Данные корректны --> Создание портфеля
+    Данные корректны --> Отображение ошибки
+    Создание портфеля --> Успешное создание
+    Отображение ошибки --> [*]
+    Успешное создание --> [*]
+
+```
+Диаграмма активности описывает процесс создания инвестиционного портфеля. Сначала пользователь заполняет форму, затем система проверяет корректность введенных данных. В случае успешной валидации создается новый портфель, а при ошибке выводится сообщение об ошибке.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant APIGateway
+    participant PortfolioService
+    participant Database
+
+    User->>Frontend: Заполнение формы
+    Frontend->>APIGateway: POST /portfolio/create
+    APIGateway->>PortfolioService: Создание портфеля
+    PortfolioService->>Database: Обновление базы данных
+    Database-->>PortfolioService: Успешная запись
+    PortfolioService-->>APIGateway: Ответ об успехе
+    APIGateway-->>Frontend: Уведомление об успехе
+    Frontend-->>User: Портфель создан
+
+```
+Диаграмма последовательности демонстрирует взаимодействие между пользователем, фронтендом, API-шлюзом, сервисом портфелей и базой данных при создании портфеля. Каждый этап операции отображает запросы и ответы между компонентами, включая успешное завершение операции.
+
+```mermaid
+classDiagram
+    class User {
+        +id : PK
+        +username : string
+        +email : string
+        +password : string
+        +createdAt : Date
+        +updatedAt : Date
+    }
+
+    class Portfolio {
+        +id : PK
+        +userId : FK
+        +name : string
+        +type : PortfolioType
+        +createdAt : Date
+        +updatedAt : Date
+    }
+
+    class Asset {
+        +id : PK
+        +name : string
+        +ticker : string
+        +type : AssetType
+        +createdAt : Date
+        +updatedAt : Date
+    }
+
+    class Transaction {
+        +id : PK
+        +portfolioId : FK
+        +assetId : FK
+        +quantity : float
+        +pricePerUnit : float
+        +type : TransactionType
+        +date : Date
+    }
+
+    User "1" --> "0..*" Portfolio : имеет
+    Portfolio "1" --> "0..*" Transaction : включает
+    Portfolio "1" --> "0..*" Asset : содержит
+    Asset "1" --> "0..*" Transaction : участвует в
+
+```
+Диаграмма классов описывает основные сущности системы: пользователи, портфели, активы и транзакции. Она показывает связи между объектами, такие как отношения один ко многим между пользователем и портфелем, а также многие ко многим между активами и портфелями через транзакции.
+
+```mermaid
+stateDiagram-v2
+    [*] --> NotLoggedIn
+    NotLoggedIn --> LoggedIn : Ввод правильных данных
+    LoggedIn --> NotLoggedIn : Ввод неправильных данных
+    LoggedIn --> LoggedOut : Выход
+    LoggedOut --> NotLoggedIn : Вход с правильными данными
+```
+
+Диаграмма состояний представляет процесс авторизации пользователя в системе. Она описывает различные состояния пользователя (неавторизованный, авторизованный, вышедший) и переходы между ними, основанные на правильности введенных данных.
