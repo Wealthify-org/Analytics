@@ -250,15 +250,13 @@ classDiagram
 ```mermaid
 classDiagram
   %% =========================
-  %% ДОМЕННЫЕ КЛАССЫ
+  %% ОСНОВНЫЕ СУЩНОСТИ (Identity)
   %% =========================
   class User {
     +id: number
     +username: string
     +email: string
     +password: string
-    +createdAt: Date
-    +updatedAt: Date
   }
 
   class Role {
@@ -275,34 +273,33 @@ classDiagram
 
   class RefreshToken {
     +id: number
-    +userId: number
-    +token: string
+    +token: string  %% hashed
+    +userId: number %% unique
     +expiryDate: Date
   }
 
   class ResetToken {
     +id: number
-    +userId: number
-    +token: string
+    +token: string  %% hashed
+    +userId: number %% unique
     +expiryDate: Date
   }
 
-  class Portfolio {
+  class FavoriteAsset {
     +id: number
     +userId: number
-    +name: string
-    +type: PortfolioType
+    +assetId: number
     +createdAt: Date
-    +updatedAt: Date
   }
 
-  class Asset {
+  %% =========================
+  %% ПОРТФЕЛИ / ТРАНЗАКЦИИ
+  %% =========================
+  class Portfolio {
     +id: number
-    +ticker: string
     +name: string
-    +type: AssetType
-    +createdAt: Date
-    +updatedAt: Date
+    +type: PortfolioType
+    +userId: number
   }
 
   class PortfolioAssets {
@@ -311,7 +308,7 @@ classDiagram
     +assetId: number
     +quantity: number
     +averageBuyPrice: number
-    +purchaseDate: Date
+    +purchaseDate: Date?
   }
 
   class Transaction {
@@ -324,38 +321,67 @@ classDiagram
     +date: Date
   }
 
-  %% ======== КРИПТО-ДАННЫЕ ========
-  class CryptoAssetData {
+  %% =========================
+  %% АКТИВЫ (общая таблица assets)
+  %% =========================
+  class Asset {
+    +id: number
+    +name: string
+    +ticker: string
+    +type: AssetType
+  }
+
+  %% =========================
+  %% КАТЕГОРИИ АКТИВОВ (выделено в сущность)
+  %% =========================
+  class AssetCategory {
+    +id: number
+    +name: string
+    +source?: string
+  }
+
+  class AssetCategoryLink {
     +id: number
     +assetId: number
+    +categoryId: number
+  }
+
+  %% =========================
+  %% КРИПТО-ДАННЫЕ (crypto-data-worker)
+  %% =========================
+  class CryptoAssetData {
+    +id: number
     +ticker: string
     +name: string
     +description?: string
     +slug?: string
     +logoUrl?: string
-    +categories?: string
-    +websiteUrl?: string
+    +logoUrlLocal?: string
     +source?: string
-    +isActive?: boolean
-    +priceUsd?: number|string
-    +marketCapUsd?: number|string
-    +fdvUsd?: number|string
-    +dominance?: number|string
-    +volume24HUsd?: number
+    +rank?: number
+    +currentPriceUsd?: number
+    +marketCapUsd?: number
+    +fdvUsd?: number
     +circulatingSupply?: number
     +totalSupply?: number
-    +maxSupply?: string|null
-    +rank?: number
-    +marketCapRank?: number
-    +sparkline7d?: any
+    +maxSupply: string|null
+    +contractAddress?: string|null
+    +volume24HUsd?: number
+    +change1HUsdPct?: number
+    +change24HUsdPct?: number
+    +change7DUsdPct?: number
+    +change14DUsdPct?: number
+    +change30DUsdPct?: number
+    +change1YUsdPct?: number
+    +sparkline7D?: any
     +lastUpdatedAt?: Date
+    +assetId: number  %% FK -> assets.id (unique)
   }
 
   class CryptoChartsData {
     +id: number
-    +assetDataId: number
+    +assetDataId: number  %% FK -> crypto_assets.id (unique)
     +capturedAt?: Date
-    %% пары [timestamp, value]
     +h24Stats?: Array<[number,number]>
     +h24Volumes?: Array<[number,number]>
     +d7Stats?: Array<[number,number]>
@@ -364,20 +390,17 @@ classDiagram
     +d30Volumes?: Array<[number,number]>
     +d90Stats?: Array<[number,number]>
     +d90Volumes?: Array<[number,number]>
-    +d180Stats?: Array<[number,number]>
-    +d180Volumes?: Array<[number,number]>
-    +y1Stats?: Array<[number,number]>
-    +y1Volumes?: Array<[number,number]>
+    +d365Stats?: Array<[number,number]>
+    +d365Volumes?: Array<[number,number]>
     +maxStats?: Array<[number,number]>
     +maxVolumes?: Array<[number,number]>
   }
 
   class CryptoCandle {
     +id: number
-    +assetId: number
+    +assetId: number %% FK -> crypto_assets.id
     +interval: CandleInterval
     +openTime: Date
-    +closeTime: Date
     +open: string
     +high: string
     +low: string
@@ -386,14 +409,21 @@ classDiagram
     +marketCapUsd?: string
   }
 
+  class RecentSearch {
+    +id: number
+    +userId: number
+    +assetId: number
+    +createdAt: Date
+  }
+
   %% =========================
   %% ENUM'Ы
   %% =========================
   class AssetType {
     <<enumeration>>
     CRYPTO
-    BOND
     STOCK
+    BOND
     FIAT
   }
 
@@ -425,23 +455,40 @@ classDiagram
   %% =========================
   %% СВЯЗИ
   %% =========================
+
+  %% Users <-> Roles (many-to-many)
   User "1" -- "0..*" UserRoles : userRoles
   Role "1" -- "0..*" UserRoles : roleUsers
 
-  User "1" o-- "0..*" Portfolio : portfolios
+  %% Tokens (1 user -> 0..1 token row, так как userId unique)
   User "1" o-- "0..1" RefreshToken : refreshToken
   User "1" o-- "0..1" ResetToken : resetToken
 
+  %% Favorites / Recent searches
+  User "1" o-- "0..*" FavoriteAsset : favorites
+  Asset "1" o-- "0..*" FavoriteAsset : favoredBy
+
+  User "1" o-- "0..*" RecentSearch : recentSearches
+  Asset "1" o-- "0..*" RecentSearch : searchedAssets
+
+  %% Portfolios
+  User "1" o-- "0..*" Portfolio : portfolios
   Portfolio "1" o-- "0..*" PortfolioAssets : holdings
   Asset "1" -- "0..*" PortfolioAssets : inPortfolios
 
   Portfolio "1" o-- "0..*" Transaction : transactions
   Asset "1" -- "0..*" Transaction : transactionAsset
 
-  %% Asset ↔ данные рынка
-  Asset "1" o-- "0..1" CryptoAssetData : assetData
+  %% Asset <-> Crypto snapshot (1:1)
+  Asset "1" o-- "0..1" CryptoAssetData : cryptoSnapshot
+
+  %% Charts and candles
   CryptoAssetData "1" o-- "0..1" CryptoChartsData : charts
   CryptoAssetData "1" o-- "0..*" CryptoCandle : candles
+
+  %% Categories (вынесены в отдельную сущность)
+  Asset "1" -- "0..*" AssetCategoryLink : categoryLinks
+  AssetCategory "1" -- "0..*" AssetCategoryLink : assets
 ```
 Диаграмма показывает структуру данных платформы аналитики портфелей: пользователей и их роли, портфели и состав портфелей (активы с количеством и средней ценой), а также историю транзакций. Типы активов/портфелей/транзакций вынесены в перечисления, чтобы явно фиксировать допустимые значения.
 
@@ -590,3 +637,83 @@ stateDiagram-v2
 ```
 
 Диаграмма состояний представляет процесс авторизации пользователя в системе. Она описывает различные состояния пользователя (неавторизованный, авторизованный, вышедший) и переходы между ними, основанные на правильности введенных данных.
+
+```mermaid
+sequenceDiagram
+    title CoinGecko парсинг — ультра-коротко (ключевые моменты)
+
+    participant Cron as Cron
+    participant Scraper as Scraper
+    participant CG as CoinGecko
+    participant Pool as WorkerPool\n(1 worker = 1 proxy)
+    participant DB as Postgres\n(tx)
+
+    Cron->>Scraper: tick
+    alt isRunning
+        Scraper-->>Cron: skip
+    else run
+        Scraper->>CG: collect links\n(+ load_more_coins)
+        Scraper->>Scraper: batches = split(links,\nBATCH_SIZE = 2 * proxies)
+
+        loop each batch
+            Scraper->>Pool: dispatch chunks\n(~2 links per worker)
+            Pool->>CG: parse in parallel\n(Puppeteer + proxy + retry)
+            Pool-->>Scraper: parsed CryptoData[]
+            Scraper->>DB: upsert batch\n(atomic transaction)
+        end
+    end
+```
+Парсинг CoinGecko — диаграмма последовательности, показывающая краткий поток работы `crypto-data-worker`: cron запускает сбор, сервис не допускает параллельных запусков через `isRunning`, затем собирает ссылки на активы (с догрузкой), режет их на батчи размера `2 * proxies`, раздаёт чанки воркерам (1 воркер = 1 proxy, ~2 ссылки на воркер), воркеры параллельно парсят страницы через Puppeteer с ретраями и возвращают `CryptoData[]`, после чего батч сохраняется в Postgres через upsert в транзакции, чтобы не было частичных обновлений данных.
+
+
+```mermaid
+sequenceDiagram
+    title Логотипы CoinGecko — скачивание + раздача статики
+
+    participant Cron as CryptoLogosCron\n(every 10m)
+    participant Logos as CryptoLogosService
+    participant DB as Postgres\n(CryptoAssetData)
+    participant CG as CoinGecko CDN
+    participant Store as LogoStorageService
+    participant FS as FileSystem\n(storage/logos)
+    participant Client as Frontend
+    participant Static as Static server\n(/static/logos/*)
+
+    Cron->>Logos: backfillMissingLogos(50)
+    Logos->>DB: SELECT assets\nWHERE logoUrlLocal IS NULL\nAND logoUrl IS NOT NULL\nLIMIT 50 ORDER BY id ASC
+    DB-->>Logos: CryptoAssetData[]
+
+    loop for each assetData
+        Logos->>Logos: ensureLocalLogo(assetData)
+
+        alt logoUrlLocal уже есть
+            Logos-->>Logos: return (skip)
+        else logoUrl отсутствует
+            Logos-->>Logos: return (skip)
+        else нужно скачать
+            Logos->>CG: GET assetData.logoUrl\n(fetch + AbortController 10s)
+
+            alt HTTP 200..299
+                CG-->>Logos: image bytes + content-type
+                Logos->>Logos: detectExtension(content-type)
+                Logos->>Store: saveCryptoAssetLogo(assetId, buffer, ext)
+                Store->>FS: mkdir (if needed)\n+ writeFile(assetId.ext)
+                FS-->>Store: OK
+                Store-->>Logos: publicUrl\n(/static/logos/crypto/assetId.ext)
+                Logos->>DB: UPDATE CryptoAssetData\nSET logoUrlLocal = publicUrl
+                DB-->>Logos: OK
+            else HTTP error / timeout
+                CG-->>Logos: error
+                Logos-->>Logos: warn + skip\n(logoUrlLocal остаётся NULL)
+            end
+        end
+    end
+
+    Note over Client,DB: В карточках активов клиент получает logoUrlLocal из БД\n(эти записи приходят от парсера, а cron только “докачивает” локальные файлы)
+
+    Client->>Static: GET /static/logos/crypto/{assetId}.{ext}
+    Static->>FS: readFile(assetId.ext)
+    FS-->>Static: bytes
+    Static-->>Client: 200 image/*
+```
+Cron раз в 10 минут выбирает из БД активы, у которых уже есть внешний logoUrl (пришёл от парсера), но ещё нет logoUrlLocal. Для каждого такого актива логотип скачивается с CoinGecko с таймаутом 10 секунд, сохраняется в файловое хранилище, а в БД записывается публичный путь /static/logos/.... Клиент затем запрашивает логотип по этому пути, и сервер отдаёт файл как статику.
